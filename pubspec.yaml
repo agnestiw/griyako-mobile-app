@@ -1,0 +1,54 @@
+name: griyako
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.1
+
+dependencies:
+  http: ^1.2.2
+  google_sign_in: ^6.3.0
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.7
+  shared_preferences: ^2.0.15
+  flutter_svg: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  google_fonts: ^6.1.0
+  flutter_lints: ^5.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+  - assets/home1.webp
+  - assets/home2.jpg
+  - assets/home3.jpg
+  - assets/home4.png
+  - assets/home5.webp
+  - assets/home6.jpg
+  - assets/home7.jpg
+  - assets/home8.jpg
+  - assets/apart1.jpg
+  - assets/kos1.jpg
+  - assets/hotel1.jpg
+  - assets/hotel2.jpg
+  - assets/tugu_pahlawan.jpg
+  - assets/monas.jpg
+  - assets/bali.webp
+  - assets/profile.jpg
+  - assets/apartment_rent.png
+  - assets/location_search.png
+  - assets/events.png
+  - assets/logo_griyako.png
+  - assets/logo_google.png
+
+
