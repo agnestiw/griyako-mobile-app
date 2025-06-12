@@ -184,7 +184,7 @@ class DetailProperty extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          property['description'] ?? 'No description available.',
+          property['facilities'] ?? 'No description available.',
           style: const TextStyle(
             fontSize: 16,
             color: Colors.black87,
@@ -252,7 +252,7 @@ class DetailProperty extends StatelessWidget {
                 elevation: 5,
               ),
               child:
-                  const Text('Contact Agent', style: TextStyle(fontSize: 16)),
+                  const Text('Hubungi Penjual', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),

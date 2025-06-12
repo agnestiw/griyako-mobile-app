@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 // --- Mock AppColors for demonstration ---
 // Replace with your actual AppColors file.
 class AppColors {
-  static const Color primary = Colors.blue;
+  static const Color primary = Colors.white;
   static const Color secondary = Colors.black;
   static const Color border = Colors.grey;
   static const Color grey = Colors.grey;
@@ -127,21 +127,17 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Search Properties'),
+        backgroundColor: AppColors.primary,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              const Text(
-                'Search',
-                style: TextStyle(
-                  color: AppColors.secondary,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
               const SizedBox(height: 16),
               // --- Functional Search Bar ---
               _buildFunctionalSearchBar(),
@@ -233,21 +229,21 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.tune,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-        ),
+        // Container(
+        //   width: 56,
+        //   height: 56,
+        //   decoration: BoxDecoration(
+        //     color: AppColors.primary,
+        //     borderRadius: BorderRadius.circular(16),
+        //   ),
+        //   child: const Center(
+        //     child: Icon(
+        //       Icons.tune,
+        //       color: Colors.white,
+        //       size: 24,
+        //     ),
+        //   ),
+        // ),
       ],
     );
   }

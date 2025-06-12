@@ -1,24 +1,22 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:griyako/screens/detail_property_screen.dart';
 import 'package:http/http.dart' as http;
 
 // --- Mock AppColors for demonstration ---
-// Replace with your actual AppColors file.
 class AppColors {
-  static const Color primary = Colors.blue;
+  static const Color primary = Colors.blue; // Changed for better visibility
   static const Color border = Colors.grey;
 }
 
 // --- Data model for a property ---
-// This defines the structure for the property data we expect from the API.
 class Property {
   final String? title;
   final String? address;
 
   Property({this.title, this.address});
 
-  // Factory constructor to create a Property from a JSON object.
   factory Property.fromJson(Map<String, dynamic> json) {
     return Property(
       title: json['title'],
@@ -26,6 +24,9 @@ class Property {
     );
   }
 }
+
+// --- Detail Screen for a Single Property ---
+
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -36,15 +37,13 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Property> _results = [];
+  // --- CHANGE 1: Use a List of Maps instead of a custom Property class ---
+  List<Map<String, dynamic>> _results = [];
   bool _isLoading = false;
   String _message = 'Search for properties by name or location';
   Timer? _debounce;
 
-  // --- API Call ---
-  // Fetches properties from the server based on the search query.
   Future<void> _searchProperties(String query) async {
-    // If the query is empty, reset the state.
     if (query.isEmpty) {
       setState(() {
         _isLoading = false;
@@ -54,13 +53,11 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    // Set loading state to true to show a progress indicator.
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Replace with your actual API endpoint.
       final url =
           Uri.parse('http://127.0.0.1:8000/api/properties/search?q=$query');
       final response = await http.get(url);
@@ -68,26 +65,24 @@ class _SearchScreenState extends State<SearchScreen> {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
-          // Map the JSON data to a list of Property objects.
-          _results = data.map((json) => Property.fromJson(json)).toList();
+          // --- CHANGE 2: Directly cast the API data to the results list ---
+          // This ensures all fields (id, price, etc.) are preserved for the detail screen.
+          _results = List<Map<String, dynamic>>.from(data);
           _message = _results.isEmpty ? 'No results found.' : '';
         });
       } else {
-        // Handle server errors.
         setState(() {
           _message = 'Failed to load data. Server error.';
           _results = [];
         });
       }
     } catch (e) {
-      // Handle connection errors.
       print('Connection error: $e');
       setState(() {
         _message = 'Failed to connect to the server.';
         _results = [];
       });
     } finally {
-      // Always set loading to false after the operation.
       setState(() {
         _isLoading = false;
       });
@@ -98,7 +93,6 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      // Debouncing logic to prevent excessive API calls while typing.
       if (_debounce?.isActive ?? false) _debounce!.cancel();
       _debounce = Timer(const Duration(milliseconds: 500), () {
         _searchProperties(_searchController.text.trim());
@@ -108,7 +102,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
-    // Clean up the controller and timer when the widget is disposed.
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
@@ -119,19 +112,19 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Search Properties'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.white,
         elevation: 0,
+        foregroundColor: Colors.black,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // --- Search Bar ---
             TextField(
               controller: _searchController,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Search by Address, City, or Property',
+                hintText: 'Search by name or location',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
@@ -139,7 +132,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.5)),
+                  borderSide:
+                      BorderSide(color: AppColors.border.withOpacity(0.5)),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -147,8 +141,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // --- Results Area ---
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -156,32 +148,48 @@ class _SearchScreenState extends State<SearchScreen> {
                       ? ListView.builder(
                           itemCount: _results.length,
                           itemBuilder: (context, index) {
+                            // The 'property' variable is now a Map
                             final property = _results[index];
-                            // --- REPLACEMENT WIDGET ---
-                            // Replaced PropertyResultCard with a standard Card and ListTile.
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 16.0),
-                              elevation: 3,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                leading: const Icon(
-                                  Icons.home_work_outlined,
-                                  color: AppColors.primary,
+                            return Hero(
+                              // --- CHANGE 3: Added Hero widget to match DetailScreen ---
+                              // This assumes your search result includes an 'id'.
+                              tag: 'property_image_${property['id']}',
+                              child: Card(
+                                margin: const EdgeInsets.only(bottom: 16.0),
+                                elevation: 3,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                title: Text(
-                                  property.title ?? 'No Title Provided',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                child: ListTile(
+                                  leading: const Icon(
+                                    Icons.home_work_outlined,
+                                    color: AppColors.primary,
                                   ),
-                                ),
-                                subtitle: Text(
-                                  property.address ?? 'No Address Provided',
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 8.0,
-                                  horizontal: 16.0,
+                                  // --- CHANGE 4: Access data using map keys ---
+                                  title: Text(
+                                    property['title'] ?? 'No Title Provided',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    property['address'] ??
+                                        'No Address Provided',
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 8.0,
+                                    horizontal: 16.0,
+                                  ),
+                                  onTap: () {
+                                    // Navigation now passes the complete map
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => DetailPropertyScreen(
+                                            property: property),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             );

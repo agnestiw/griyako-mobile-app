@@ -19,7 +19,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   // State variables for managing screen data
   bool _isLoading = true;
   List<Map<String, dynamic>> _favoriteItems = [];
-  Set<int> _selectedItemIds = {}; // To track IDs of selected items for deletion
 
   int _selectedIndex = 3; // For BottomNavBar
 
@@ -43,6 +42,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   /// Fetches the list of favorite properties from the Laravel backend.
   Future<void> _fetchFavorites() async {
+    // Ensure we aren't already fetching
+    if (!_isLoading) setState(() => _isLoading = true);
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
@@ -52,7 +54,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       return;
     }
 
-    // UPDATED: Endpoint changed to /favorites
     final url = Uri.parse('${_baseUrl}favorites');
     final headers = {
       'Content-Type': 'application/json',
@@ -67,76 +68,77 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           _favoriteItems = List<Map<String, dynamic>>.from(data);
-          _isLoading = false;
         });
       } else {
-        setState(() => _isLoading = false);
         _showErrorSnackBar(
             'Failed to load favorites: ${response.reasonPhrase}');
       }
     } catch (e) {
-      setState(() => _isLoading = false);
       _showErrorSnackBar(
           'An error occurred. Make sure your local server is running and accessible.');
+    } finally {
+      // Hide loading indicator regardless of outcome
+      setState(() => _isLoading = false);
     }
   }
 
-  /// Deletes the selected favorite items by sending an individual DELETE request for each.
-  Future<void> _deleteSelectedFavorites() async {
-    if (_selectedItemIds.isEmpty) return; // Nothing to delete
+  /// Deletes a single favorite item and provides optimistic UI updates.
+  Future<void> _deleteFavorite(int id) async {
+    // Find the item and its index for potential restoration on failure
+    final int itemIndex = _favoriteItems.indexWhere((item) => item['id'] == id);
+    if (itemIndex == -1) return; // Item not found in the list
 
-    // TODO: Replace with your actual auth token retrieval logic
-    const String? authToken =
-        '1|YOUR_BEARER_TOKEN'; // Replace with your actual token
-    if (authToken == null) {
+    final itemToRemove = _favoriteItems[itemIndex];
+
+    // Optimistically remove the item from the UI
+    setState(() {
+      _favoriteItems.removeAt(itemIndex);
+    });
+
+    // Retrieve the auth token
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) {
       _showErrorSnackBar('Authentication token not found.');
+      // Restore the item if auth fails before the request
+      setState(() {
+        _favoriteItems.insert(itemIndex, itemToRemove);
+      });
       return;
     }
 
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Authorization': 'Bearer $authToken',
+      'Authorization': 'Bearer $token',
     };
-
-    // Show a loading indicator on the delete button
-    setState(() => _isLoading = true);
-
-    // Create a list of futures, one for each delete request
-    final List<Future<http.Response>> deleteFutures = _selectedItemIds
-        .map((id) => http.delete(Uri.parse('${_baseUrl}favorites/$id'),
-            headers: headers))
-        .toList();
+    final url = Uri.parse('${_baseUrl}favorites/$id/delete');
 
     try {
-      // Execute all delete requests concurrently
-      final responses = await Future.wait(deleteFutures);
+      final response = await http.delete(url, headers: headers);
 
-      // Check if all requests were successful
-      final allSucceeded = responses
-          .every((res) => res.statusCode == 200 || res.statusCode == 204);
-
-      if (allSucceeded) {
-        // If all deletions succeeded, update the UI locally
+      // A successful deletion returns 200 or 204 (No Content)
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        // If the delete failed on the server, restore the item and show an error
+        _showErrorSnackBar('Failed to delete item. Please try again.');
         setState(() {
-          _favoriteItems
-              .removeWhere((item) => _selectedItemIds.contains(item['id']));
-          _selectedItemIds.clear();
+          _favoriteItems.insert(itemIndex, itemToRemove);
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Selected items deleted successfully.'),
-          backgroundColor: Colors.green,
-        ));
       } else {
-        // If some failed, show a generic error and refetch the list to sync with the server's state
-        _showErrorSnackBar('Some items could not be deleted. Refreshing list.');
-        await _fetchFavorites(); // Re-fetch to get the source of truth
+        // Show a success message only if the deletion was confirmed by the server
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Item deleted successfully.'),
+            backgroundColor: Colors.green,
+          ));
+        }
       }
     } catch (e) {
-      _showErrorSnackBar('An error occurred while deleting items.');
-    } finally {
-      // Hide loading indicator regardless of outcome
-      setState(() => _isLoading = false);
+      // Restore the item on any exception during the HTTP request
+      _showErrorSnackBar('An error occurred while deleting the item.');
+      setState(() {
+        _favoriteItems.insert(itemIndex, itemToRemove);
+      });
     }
   }
 
@@ -160,9 +162,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
-              _buildSelectAllRow(), // The "Select All" and delete button row
-              const SizedBox(height: 16),
+              const SizedBox(height: 24), // Adjusted spacing
               Expanded(
                 child: _buildContent(), // Dynamic content area
               ),
@@ -179,7 +179,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   /// Builds the main content area based on the current state (loading, empty, or has data).
   Widget _buildContent() {
-    if (_isLoading && _favoriteItems.isEmpty) {
+    if (_isLoading) {
       return const Center(
           child: CircularProgressIndicator(color: AppColors.primary));
     }
@@ -197,35 +197,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         itemCount: _favoriteItems.length,
         itemBuilder: (context, index) {
           final item = _favoriteItems[index];
-          final isSelected = _selectedItemIds.contains(item['id']);
 
-          // Building each list item with a checkbox
+          // Building each list item with a delete button
           return Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Checkbox(
-                    value: isSelected,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        if (value == true) {
-                          _selectedItemIds.add(item['id'] as int);
-                        } else {
-                          _selectedItemIds.remove(item['id'] as int);
-                        }
-                      });
-                    },
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4)),
-                    activeColor: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Using Expanded to ensure FavoriteItem takes remaining space
+                // Using Expanded to ensure FavoriteItem takes available space
                 Expanded(
                   child: FavoriteItem(
                     // Safely access data with fallback values
@@ -234,82 +213,28 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     price: item['harga']?.toString() ?? 'N/A',
                     imageUrl: item['image_url'] ??
                         'assets/placeholder.png', // Ensure you have a placeholder
-                    // Pass other properties as needed...
                     bedrooms: item['bedrooms']?.toString() ?? '?',
                     bathrooms: item['bathrooms']?.toString() ?? '?',
                     type: item['property_type'] ?? 'N/A',
                     rating: 'N/A', // Adjust if you have this data
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Delete button for each item
+                IconButton(
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                  onPressed: () => _deleteFavorite(item['id'] as int),
+                  tooltip: 'Delete Favorite',
+                ),
               ],
             ),
           );
         },
       ),
-    );
-  }
-
-  /// Builds the top row with "Select all" checkbox and delete button.
-  Widget _buildSelectAllRow() {
-    final bool allSelected = _favoriteItems.isNotEmpty &&
-        _selectedItemIds.length == _favoriteItems.length;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: allSelected,
-                onChanged: (value) {
-                  setState(() {
-                    if (value == true) {
-                      _selectedItemIds = _favoriteItems
-                          .map((item) => item['id'] as int)
-                          .toSet();
-                    } else {
-                      _selectedItemIds.clear();
-                    }
-                  });
-                },
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4)),
-                activeColor: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Select all',
-              style: TextStyle(
-                color: AppColors.secondary,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        _isLoading && _selectedItemIds.isNotEmpty
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: AppColors.primary,
-                ))
-            : IconButton(
-                icon: const Icon(
-                  Icons.delete_outline,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
-                onPressed: _selectedItemIds.isEmpty
-                    ? null
-                    : _deleteSelectedFavorites, // Disable if nothing is selected
-              ),
-      ],
     );
   }
 

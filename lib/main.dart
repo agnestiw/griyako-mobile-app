@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:griyako/screens/notifications_screen.dart';
 import 'package:griyako/widgets/detail_property.dart';
 import 'screens/home_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/search_results_screen.dart';
 import 'screens/marketplace_screen.dart';
 import 'screens/favorites_screen.dart';
+import 'screens/languages_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -43,7 +45,7 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      initialRoute: '/splash',
+      initialRoute: '/',
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
@@ -53,6 +55,8 @@ class MyApp extends StatelessWidget {
         '/search_input': (context) => const SearchScreen(),
         '/search_results': (context) => const SearchResultsScreen(),
         '/marketplace': (context) => const MarketplaceScreen(),
+        '/languages': (context) => const LanguageScreen(),
+        '/notifications': (context) => const NotificationScreen(),
         '/favorites': (context) => const FavoritesScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/form_marketplace': (context) => const FormMarketplaceScreen(),

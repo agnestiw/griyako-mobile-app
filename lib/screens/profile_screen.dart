@@ -236,7 +236,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ProfileMenuItem(
           icon: Icons.home_outlined,
           title: 'My Property',
-          onTap: () {},
+          onTap: () {
+            Navigator.pushNamed(context, '/marketplace');
+          },
         ),
       ],
     );
@@ -258,13 +260,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ProfileMenuItem(
           icon: Icons.notifications_none,
           title: 'Notification',
-          onTap: () {},
+          onTap: () {
+            Navigator.pushNamed(context, '/notifications');
+          },
         ),
         const SizedBox(height: 16),
         ProfileMenuItem(
           icon: Icons.language,
           title: 'Language',
-          onTap: () {},
+          onTap: () {
+            Navigator.pushNamed(context, '/languages');
+          },
         ),
       ],
     );

@@ -55,8 +55,8 @@ class BottomNavBar extends StatelessWidget {
           }
         } else if (index == 1) {
           // Navigate to search results screen
-          if (ModalRoute.of(context)?.settings.name != '/search_results') {
-            Navigator.pushNamed(context, '/search_results');
+          if (ModalRoute.of(context)?.settings.name != '/search_input') {
+            Navigator.pushNamed(context, '/search_input');
           }
         } else if (index == 2) {
           // Navigate to marketplace screen

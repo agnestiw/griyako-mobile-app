@@ -47,7 +47,9 @@ class LocationHeader extends StatelessWidget {
             color: AppColors.secondary,
             size: 24,
           ),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.pushNamed(context, '/notifications');
+          },
         ),
         IconButton(
           icon: const Icon(
