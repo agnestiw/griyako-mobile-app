@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_colors.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/transaction_status_item.dart';
 import '../widgets/profile_menu_item.dart';
+import 'package:http/http.dart' as http;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -12,6 +16,51 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  Future<String> fetchUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('http://127.0.0.1:8000/api/user'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['name']; // or data['nama'] depending on your API
+    } else {
+      throw Exception('Failed to load user');
+    }
+  }
+
+  Future<void> logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/api/logout'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      await prefs.remove('token');
+
+      // Navigasi ke halaman login (ganti sesuai nama halamanmu)
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    } else {
+      final data = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['message'] ?? 'Logout gagal')),
+      );
+    }
+  }
+
   int _selectedIndex = 4; // Set to 4 for profile tab
 
   void onNavItemTapped(int index) {
@@ -90,27 +139,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'Hana Alfira Prabowo',
-              style: TextStyle(
-                color: AppColors.secondary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              '089265632514',
-              style: TextStyle(
-                color: AppColors.grey,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
+        FutureBuilder<String>(
+          future: fetchUserName(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return CircularProgressIndicator(); // or Skeleton
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}');
+            } else {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    snapshot.data ?? '',
+                    style: TextStyle(
+                      color: AppColors.secondary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '089265632514', // You can make this dynamic too
+                    style: TextStyle(
+                      color: AppColors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              );
+            }
+          },
+        )
       ],
     );
   }
@@ -232,7 +292,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-    Widget _buildAboutSection() {
+  Widget _buildAboutSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -268,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title: 'Logout',
           iconColor: AppColors.danger,
           textColor: AppColors.danger,
-          onTap: () {},
+          onTap: () => logout(context),
         )
       ],
     );

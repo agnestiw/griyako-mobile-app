@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 
 class PropertyCard extends StatelessWidget {
-  final String image;
+  // 1. UPDATE THE CONSTRUCTOR PARAMETERS
+  // We change 'image' to 'imageUrl' and add 'isNetworkImage'
+  final String imageUrl;
+  final bool isNetworkImage;
   final String type;
   final String size;
   final String price;
@@ -13,7 +16,8 @@ class PropertyCard extends StatelessWidget {
 
   const PropertyCard({
     Key? key,
-    required this.image,
+    required this.imageUrl, // Changed from 'image'
+    required this.isNetworkImage, // Added
     required this.type,
     required this.size,
     required this.price,
@@ -25,6 +29,40 @@ class PropertyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 2. ADD THE LOGIC TO CHOOSE THE CORRECT IMAGE WIDGET
+    Widget imageWidget;
+    if (isNetworkImage) {
+      // If it's a network image, use Image.network
+      imageWidget = Image.network(
+        imageUrl,
+        height: 120,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const SizedBox(
+            height: 120,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          // Display a placeholder icon if the network image fails
+          return const SizedBox(
+            height: 120,
+            child: Icon(Icons.broken_image_outlined, color: AppColors.grey, size: 40),
+          );
+        },
+      );
+    } else {
+      // Otherwise, use Image.asset for local fallback images
+      imageWidget = Image.asset(
+        imageUrl, // Now this will be a local asset path like 'assets/logo_griyako.png'
+        height: 120,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -42,12 +80,9 @@ class PropertyCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: Image.asset(
-              image,
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
+            // 3. USE THE NEW imageWidget HERE
+            // This will be either the network image or the asset image
+            child: imageWidget,
           ),
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -62,15 +97,8 @@ class PropertyCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  size,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
+                // I noticed 'size' and 'title' had the same style.
+                // You can combine them or keep them separate as you prefer.
                 Text(
                   title,
                   style: const TextStyle(
@@ -78,6 +106,8 @@ class PropertyCard extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
+                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
                 Text(

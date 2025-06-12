@@ -17,6 +17,10 @@ dependencies:
   equatable: ^2.0.7
   shared_preferences: ^2.0.15
   flutter_svg: ^1.1.0
+  image_picker: ^1.1.2
+  file_picker: ^10.1.9
+  intl: ^0.20.2
+  dotted_border: ^2.1.0
 
 dev_dependencies:
   flutter_test:

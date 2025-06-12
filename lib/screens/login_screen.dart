@@ -5,6 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_colors.dart';
 import 'package:griyako/login_response.dart';
 
+class Property {
+  final String name;
+  final int userId;
+
+  Property({
+    required this.name,
+    required this.userId,
+  });
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
@@ -17,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _isPasswordVisible = false;
-  bool _isLoading = false; // State untuk loading
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -27,8 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<LoginResponse> loginUser(String email, String password) async {
-    const String apiUrl =
-        'http://127.0.0.1:8000/api/login'; 
+    const String apiUrl = 'http://127.0.0.1:8000/api/login';
 
     try {
       final response = await http.post(
@@ -49,7 +58,6 @@ class _LoginScreenState extends State<LoginScreen> {
         final Map<String, dynamic> errorBody = jsonDecode(response.body);
         final String errorMessage = errorBody['message'] ?? 'Unknown error';
 
-        // Handle validation errors from Laravel
         String detailedErrors = '';
         if (errorBody.containsKey('errors')) {
           final errors = errorBody['errors'] as Map<String, dynamic>;
@@ -90,7 +98,6 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       if (response.success) {
-        // Simpan token dan data user
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', response.data!.token);
         await prefs.setString('user', jsonEncode(response.data!.user.toJson()));
@@ -102,7 +109,6 @@ class _LoginScreenState extends State<LoginScreen> {
           SnackBar(content: Text(response.message)),
         );
 
-        // Navigasi ke home screen
         Navigator.pushReplacementNamed(context, '/');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -117,6 +123,15 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(content: Text('Error: $e')),
       );
     }
+  }
+
+  Future<Map<String, dynamic>?> getUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString != null) {
+      return jsonDecode(userString);
+    }
+    return null;
   }
 
   @override
@@ -198,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Implement forgot password
+                        // TODO: implement forgot password
                       },
                       child: Text(
                         'Forgot Password?',
@@ -216,8 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed:
-                        _isLoading ? null : _login, // Disable saat loading
+                    onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
@@ -225,9 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(
-                            color: Colors.white,
-                          )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(
                             'Login',
                             style: TextStyle(
@@ -242,10 +254,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   children: [
                     const Expanded(
-                      child: Divider(
-                        color: Colors.grey,
-                        thickness: 0.5,
-                      ),
+                      child: Divider(color: Colors.grey, thickness: 0.5),
                     ),
                     const SizedBox(width: 16),
                     const Text(
@@ -257,10 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(width: 16),
                     const Expanded(
-                      child: Divider(
-                        color: Colors.grey,
-                        thickness: 0.5,
-                      ),
+                      child: Divider(color: Colors.grey, thickness: 0.5),
                     ),
                   ],
                 ),
@@ -270,7 +276,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 56,
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      // Implement Google login later
                       Navigator.pushReplacementNamed(context, '/');
                     },
                     icon: Image.asset(

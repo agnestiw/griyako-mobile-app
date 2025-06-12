@@ -1,149 +1,202 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../utils/app_colors.dart';
-import '../widgets/history_item.dart';
-import '../widgets/bottom_nav_bar.dart';
+import 'package:http/http.dart' as http;
+
+// --- Mock AppColors for demonstration ---
+// Replace with your actual AppColors file.
+class AppColors {
+  static const Color primary = Colors.blue;
+  static const Color border = Colors.grey;
+}
+
+// --- Data model for a property ---
+// This defines the structure for the property data we expect from the API.
+class Property {
+  final String? title;
+  final String? address;
+
+  Property({this.title, this.address});
+
+  // Factory constructor to create a Property from a JSON object.
+  factory Property.fromJson(Map<String, dynamic> json) {
+    return Property(
+      title: json['title'],
+      address: json['address'],
+    );
+  }
+}
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  _SearchScreenState createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  int _selectedIndex = 1;
-  final TextEditingController searchController = TextEditingController();
-  final List<Map<String, String>> _allHistory = [
-    {'location': 'Surabaya Barat', 'description': 'Apartment Benson'},
-    {'location': 'Gubeng Airlangga', 'description': 'Kos-kosan Bu Indri'},
-    {'location': 'Jl. Demak Baru', 'description': 'Kontrakan Bu Lastri'},
-    {'location': 'Manukan Tama Gang 10', 'description': 'Rumah Second'},
-    {'location': 'Gadel Jaya', 'description': 'Rumah Baru'},
-    {'location': 'Pakal, Benowo, Surabaya', 'description': 'Ruko'},
-  ];
+  final TextEditingController _searchController = TextEditingController();
+  List<Property> _results = [];
+  bool _isLoading = false;
+  String _message = 'Search for properties by name or location';
+  Timer? _debounce;
 
-  List<Map<String, String>> _filteredHistory = [];
+  // --- API Call ---
+  // Fetches properties from the server based on the search query.
+  Future<void> _searchProperties(String query) async {
+    // If the query is empty, reset the state.
+    if (query.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _results = [];
+        _message = 'Search for properties by name or location';
+      });
+      return;
+    }
+
+    // Set loading state to true to show a progress indicator.
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Replace with your actual API endpoint.
+      final url =
+          Uri.parse('http://127.0.0.1:8000/api/properties/search?q=$query');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          // Map the JSON data to a list of Property objects.
+          _results = data.map((json) => Property.fromJson(json)).toList();
+          _message = _results.isEmpty ? 'No results found.' : '';
+        });
+      } else {
+        // Handle server errors.
+        setState(() {
+          _message = 'Failed to load data. Server error.';
+          _results = [];
+        });
+      }
+    } catch (e) {
+      // Handle connection errors.
+      print('Connection error: $e');
+      setState(() {
+        _message = 'Failed to connect to the server.';
+        _results = [];
+      });
+    } finally {
+      // Always set loading to false after the operation.
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _filteredHistory = List.from(_allHistory);
-
-    searchController.addListener(() {
-      final query = searchController.text.toLowerCase();
-      setState(() {
-        _filteredHistory = _allHistory.where((item) {
-          return item['location']!.toLowerCase().contains(query) ||
-              item['description']!.toLowerCase().contains(query);
-        }).toList();
+    _searchController.addListener(() {
+      // Debouncing logic to prevent excessive API calls while typing.
+      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      _debounce = Timer(const Duration(milliseconds: 500), () {
+        _searchProperties(_searchController.text.trim());
       });
     });
   }
 
   @override
   void dispose() {
-    searchController.dispose();
+    // Clean up the controller and timer when the widget is disposed.
+    _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
-  }
-
-  void onNavItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.secondary, size: 24),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 16),
-                  const Text(
-                    'What are you looking for?',
-                    style: TextStyle(
-                      color: AppColors.secondary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
+      appBar: AppBar(
+        title: const Text('Search Properties'),
+        backgroundColor: AppColors.primary,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // --- Search Bar ---
+            TextField(
+              controller: _searchController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Search by Address, City, or Property',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: const BorderSide(color: AppColors.border),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search,
-                        color: AppColors.secondary, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: searchController,
-                        decoration: const InputDecoration(
-                          hintText: 'Search location or property',
-                          hintStyle:
-                              TextStyle(color: AppColors.grey, fontSize: 16),
-                          border: InputBorder.none,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide(color: AppColors.border.withOpacity(0.5)),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // --- Results Area ---
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _results.isNotEmpty
+                      ? ListView.builder(
+                          itemCount: _results.length,
+                          itemBuilder: (context, index) {
+                            final property = _results[index];
+                            // --- REPLACEMENT WIDGET ---
+                            // Replaced PropertyResultCard with a standard Card and ListTile.
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 16.0),
+                              elevation: 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListTile(
+                                leading: const Icon(
+                                  Icons.home_work_outlined,
+                                  color: AppColors.primary,
+                                ),
+                                title: Text(
+                                  property.title ?? 'No Title Provided',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  property.address ?? 'No Address Provided',
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 8.0,
+                                  horizontal: 16.0,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Text(
+                            _message,
+                            style: const TextStyle(
+                                fontSize: 16, color: Colors.grey),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                        style: const TextStyle(
-                            color: AppColors.secondary, fontSize: 16),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'History',
-                style: TextStyle(
-                  color: AppColors.secondary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: _filteredHistory.isNotEmpty
-                    ? ListView.builder(
-                        itemCount: _filteredHistory.length,
-                        itemBuilder: (context, index) {
-                          final item = _filteredHistory[index];
-                          return ListTile(
-                            leading: const Icon(Icons.history),
-                            title: Text(item['location']!,
-                                style:
-                                    const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(item['description']!),
-                            onTap: () {
-                              // Optional: handle tap on item
-                            },
-                          );
-                        },
-                      )
-                    : const Center(child: Text('No results found')),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

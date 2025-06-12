@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:griyako/widgets/detail_property.dart';
 import 'screens/home_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/search_results_screen.dart';
@@ -12,6 +13,7 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/form_marketplace_screen.dart';
 import 'screens/edit_profile_screen.dart';
+import 'screens/detail_property_screen.dart';
 import 'utils/app_colors.dart';
 
 void main() {
@@ -33,7 +35,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Real Estate App',
       theme: ThemeData(
-        primaryColor: AppColors.primary,
+        // primaryColor: AppColors.primary,
         scaffoldBackgroundColor: Colors.white,
         fontFamily: 'Poppins',
         appBarTheme: const AppBarTheme(
