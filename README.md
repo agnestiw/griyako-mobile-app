@@ -1,16 +1,27 @@
-# griyako
+# 🏠 Griyako
 
-A new Flutter project.
+**Griyako** is a Flutter-based mobile application for buying and selling properties such as houses, land, and commercial buildings. The app is integrated with a [Laravel backend](https://github.com/agnestiw/Griyako-Backend) to manage user authentication, property listings, and secure data storage.
 
-## Getting Started
+## 🚀 Features
 
-This project is a starting point for a Flutter application.
+- 🔐 User authentication (Login & Register)
+- 🏡 Create, edit, and delete property listings
+- 📸 Upload property images
+- 🔍 Search properties by location, type, price, etc.
+- ❤️ Save favorite listings
+- 📱 Responsive and user-friendly UI
+- 🌐 Integrated with a Laravel REST API
 
-A few resources to get you started if this is your first Flutter project:
+## 🛠️ Tech Stack
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Frontend
+- Flutter
+- Dart
+- HTTP package
+- SharedPreferences (for session/token storage)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Backend
+- Laravel (RESTful API) – [Griyako Backend Repo](https://github.com/agnestiw/Griyako-Backend)
+- MySQL Database
+
+## 📁 Project Structure
