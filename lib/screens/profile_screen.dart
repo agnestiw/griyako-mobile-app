@@ -16,9 +16,27 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  Future<String> fetchUserName() async {
+  // This future will now hold both the name and the phone number.
+  late Future<Map<String, String>> _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the future in initState to prevent it from being called
+    // on every rebuild.
+    _userData = fetchUserData();
+  }
+
+  // Updated function to fetch both user name and phone number.
+  // It now returns a Map.
+  Future<Map<String, String>> fetchUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+
+    // Make sure you have a token before making the request.
+    if (token == null) {
+      throw Exception('Authentication token not found.');
+    }
 
     final response = await http.get(
       Uri.parse('http://127.0.0.1:8000/api/user'),
@@ -30,9 +48,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['name']; // or data['nama'] depending on your API
+      // IMPORTANT: Adjust the keys ('name', 'phone') to match the actual keys
+      // in your API response.
+      return {
+        'name': data['name'] ?? 'No Name',
+        'phone': data['phone'] ?? 'No Phone Number', // e.g., data['no_telp']
+      };
     } else {
-      throw Exception('Failed to load user');
+      // Handle different error status codes if needed.
+      throw Exception('Failed to load user data');
+    }
+  }
+
+  Future<void> updateProfile({
+    required String name,
+    required String email,
+    required String
+        phone, // Pastikan Anda mendapatkan value dari text controller
+    required String address,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    // Buat body untuk request
+    final body = {
+      'name': name,
+      'email': email,
+      'phone': phone, // Pastikan key di sini adalah 'phone'
+      'address': address,
+    };
+
+    // =========================================================
+    // ==> TAMBAHKAN PRINT DI SINI UNTUK DEBUGGING <==
+    print('Data yang akan dikirim ke server: ${jsonEncode(body)}');
+    // =========================================================
+
+    final response = await http.post(
+      // atau http.put
+      Uri.parse(
+          'http://127.0.0.1:8000/api/user/update'), // Pastikan URL update Anda benar
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    // Periksa juga response dari server
+    print('Status Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      // Berhasil
+    } else {
+      // Gagal
     }
   }
 
@@ -40,33 +110,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
-    final response = await http.post(
-      Uri.parse('http://127.0.0.1:8000/api/logout'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
+    // Show a confirmation dialog before logging out.
+    bool? confirmLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
       },
     );
 
-    if (response.statusCode == 200) {
-      await prefs.remove('token');
+    if (confirmLogout != true) {
+      return;
+    }
 
-      // Navigasi ke halaman login (ganti sesuai nama halamanmu)
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-    } else {
-      final data = jsonDecode(response.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message'] ?? 'Logout gagal')),
+    // Continue with logout if confirmed
+    try {
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/api/logout'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
+
+      if (response.statusCode == 200) {
+        await prefs.remove('token');
+        if (mounted) {
+          // Navigate to the login page and remove all previous routes.
+          Navigator.pushNamedAndRemoveUntil(
+              context, '/login', (route) => false);
+        }
+      } else {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['message'] ?? 'Logout failed')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('An error occurred: $e')),
+        );
+      }
     }
   }
 
   int _selectedIndex = 4; // Set to 4 for profile tab
 
   void onNavItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    // This function will handle navigation from the bottom bar.
+    // You would typically use a Navigator to push the new screen.
+    // For this example, we just update the state.
+    if (_selectedIndex != index) {
+      setState(() {
+        _selectedIndex = index;
+      });
+      // Example of navigation logic
+      switch (index) {
+        case 0:
+          // Navigator.pushReplacementNamed(context, '/home');
+          break;
+        case 1:
+          // Navigator.pushReplacementNamed(context, '/marketplace');
+          break;
+        case 2:
+          // Navigator.pushReplacementNamed(context, '/favorites');
+          break;
+        case 3:
+          // Navigator.pushReplacementNamed(context, '/messages');
+          break;
+        case 4:
+          // Already on profile screen
+          break;
+      }
+    }
   }
 
   @override
@@ -90,8 +221,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 24),
                 _buildProfileHeader(),
-                const SizedBox(height: 32),
-                _buildTransactionSection(),
                 const SizedBox(height: 32),
                 _buildAccountSection(),
                 const SizedBox(height: 32),
@@ -139,75 +268,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(width: 16),
-        FutureBuilder<String>(
-          future: fetchUserName(),
+        // The FutureBuilder now uses the _userData future initialized in initState.
+        FutureBuilder<Map<String, String>>(
+          future: _userData,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return CircularProgressIndicator(); // or Skeleton
+              return const CircularProgressIndicator(color: AppColors.primary);
             } else if (snapshot.hasError) {
               return Text('Error: ${snapshot.error}');
-            } else {
+            } else if (snapshot.hasData) {
+              // Data is available, build the column with user info.
+              final userData = snapshot.data!;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    snapshot.data ?? '',
-                    style: TextStyle(
+                    userData['name'] ?? 'Guest', // Display name from map
+                    style: const TextStyle(
                       color: AppColors.secondary,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    '089265632514', // You can make this dynamic too
-                    style: TextStyle(
+                  Text(
+                    userData['phone'] ?? 'N/A', // Display phone from map
+                    style: const TextStyle(
                       color: AppColors.grey,
                       fontSize: 14,
                     ),
                   ),
                 ],
               );
+            } else {
+              // Handle the case where there is no data.
+              return const Text('No user data found.');
             }
           },
         )
-      ],
-    );
-  }
-
-  Widget _buildTransactionSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'My Transaction',
-          style: TextStyle(
-            color: AppColors.secondary,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: const [
-            TransactionStatusItem(
-              icon: Icons.access_time,
-              title: 'Booking',
-              color: AppColors.primary,
-            ),
-            TransactionStatusItem(
-              icon: Icons.check_circle,
-              title: 'Completed',
-              color: AppColors.primary,
-            ),
-            TransactionStatusItem(
-              icon: Icons.cancel,
-              title: 'Cancelled',
-              color: AppColors.primary,
-            ),
-          ],
-        ),
       ],
     );
   }

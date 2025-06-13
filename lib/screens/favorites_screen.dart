@@ -20,6 +20,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _favoriteItems = [];
 
+  String get _imageBaseUrl {
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'http://10.0.2.2:8000/api/image/'; // Android emulator
+    }
+    return 'http://127.0.0.1:8000/api/image/'; // iOS/Web/Desktop
+  }
+
   int _selectedIndex = 3; // For BottomNavBar
 
   // --- API Configuration ---
@@ -44,6 +51,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Future<void> _fetchFavorites() async {
     // Ensure we aren't already fetching
     if (!_isLoading) setState(() => _isLoading = true);
+    print('Starting _fetchFavorites...');
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -51,96 +59,120 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (token == null) {
       setState(() => _isLoading = false);
       _showErrorSnackBar('Authentication token not found.');
+      print('Error: Auth token is null.');
       return;
     }
+    print('Auth Token: $token'); // Print the token to verify it's retrieved
 
     final url = Uri.parse('${_baseUrl}favorites');
+    print('Request URL: $url'); // Print the full URL
+
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Authorization': 'Bearer $token',
     };
+    print('Request Headers: $headers'); // Print headers to check them
 
     try {
       final response = await http.get(url, headers: headers);
+      print(
+          'Response Status Code: ${response.statusCode}'); // Print the status code
+      print('Response Body: ${response.body}'); // Print the raw response body
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           _favoriteItems = List<Map<String, dynamic>>.from(data);
         });
+        print('Successfully parsed and set favorite items.');
       } else {
         _showErrorSnackBar(
             'Failed to load favorites: ${response.reasonPhrase}');
+        print(
+            'Failed to load favorites. Status: ${response.statusCode}, Reason: ${response.reasonPhrase}');
       }
     } catch (e) {
       _showErrorSnackBar(
           'An error occurred. Make sure your local server is running and accessible.');
+      print('An error occurred: $e'); // Print the exception details
     } finally {
       // Hide loading indicator regardless of outcome
       setState(() => _isLoading = false);
+      print('Finished _fetchFavorites.');
     }
   }
 
   /// Deletes a single favorite item and provides optimistic UI updates.
   Future<void> _deleteFavorite(int id) async {
-    // Find the item and its index for potential restoration on failure
-    final int itemIndex = _favoriteItems.indexWhere((item) => item['id'] == id);
-    if (itemIndex == -1) return; // Item not found in the list
+  print('🔴 Attempting to delete favorite with id: $id');
 
-    final itemToRemove = _favoriteItems[itemIndex];
-
-    // Optimistically remove the item from the UI
-    setState(() {
-      _favoriteItems.removeAt(itemIndex);
-    });
-
-    // Retrieve the auth token
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    if (token == null) {
-      _showErrorSnackBar('Authentication token not found.');
-      // Restore the item if auth fails before the request
-      setState(() {
-        _favoriteItems.insert(itemIndex, itemToRemove);
-      });
-      return;
-    }
-
-    final headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-    final url = Uri.parse('${_baseUrl}favorites/$id/delete');
-
-    try {
-      final response = await http.delete(url, headers: headers);
-
-      // A successful deletion returns 200 or 204 (No Content)
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        // If the delete failed on the server, restore the item and show an error
-        _showErrorSnackBar('Failed to delete item. Please try again.');
-        setState(() {
-          _favoriteItems.insert(itemIndex, itemToRemove);
-        });
-      } else {
-        // Show a success message only if the deletion was confirmed by the server
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Item deleted successfully.'),
-            backgroundColor: Colors.green,
-          ));
-        }
-      }
-    } catch (e) {
-      // Restore the item on any exception during the HTTP request
-      _showErrorSnackBar('An error occurred while deleting the item.');
-      setState(() {
-        _favoriteItems.insert(itemIndex, itemToRemove);
-      });
-    }
+  // Find the item and its index for potential restoration on failure
+  final int itemIndex = _favoriteItems.indexWhere((item) => item['id'] == id);
+  if (itemIndex == -1) {
+    print('⚠️ Item with id $id not found in list.');
+    return;
   }
+
+  final itemToRemove = _favoriteItems[itemIndex];
+
+  // Optimistically remove the item from the UI
+  setState(() {
+    _favoriteItems.removeAt(itemIndex);
+  });
+
+  // Retrieve the auth token
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  print('📦 Retrieved token: $token');
+
+  if (token == null) {
+    print('❌ Token not found. Aborting delete.');
+    _showErrorSnackBar('Authentication token not found.');
+    setState(() {
+      _favoriteItems.insert(itemIndex, itemToRemove);
+    });
+    return;
+  }
+
+  final headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
+  final url = Uri.parse('${_baseUrl}favorites/$id/delete');
+  print('🌐 Sending DELETE request to: $url');
+  print('📨 Request headers: $headers');
+
+  try {
+    final response = await http.delete(url, headers: headers);
+    print('📬 Response status code: ${response.statusCode}');
+    print('📬 Response body: ${response.body}');
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      print('❌ Server responded with error code.');
+      _showErrorSnackBar('Failed to delete item. Please try again.');
+      setState(() {
+        _favoriteItems.insert(itemIndex, itemToRemove);
+      });
+    } else {
+      print('✅ Item deleted successfully on server.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Item deleted successfully.'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    }
+  } catch (e) {
+    print('❗ Exception occurred during delete request: $e');
+    _showErrorSnackBar('An error occurred while deleting the item.');
+    setState(() {
+      _favoriteItems.insert(itemIndex, itemToRemove);
+    });
+  }
+}
+
 
   // --- UI Building ---
 
@@ -211,8 +243,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     title: item['title'] ?? 'No Title',
                     location: item['address'] ?? 'No Address',
                     price: item['harga']?.toString() ?? 'N/A',
-                    imageUrl: item['image_url'] ??
-                        'assets/placeholder.png', // Ensure you have a placeholder
+                    imageUrl: item['image_url'] != null
+                        ? _imageBaseUrl +
+                            item['image_url'] // Use the full path from response
+                        : '',
                     bedrooms: item['bedrooms']?.toString() ?? '?',
                     bathrooms: item['bathrooms']?.toString() ?? '?',
                     type: item['property_type'] ?? 'N/A',

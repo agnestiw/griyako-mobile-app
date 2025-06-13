@@ -142,6 +142,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       request.fields['phone'] = _phoneController.text;
       request.fields['address'] = _addressController.text;
 
+      // Debug print
+      print('📤 Sending fields:');
+      request.fields.forEach((key, value) {
+        print('➡️ $key: $value');
+      });
+
       // Add image file if a new one was selected
       if (_profileImageFile != null) {
         request.files.add(
@@ -166,6 +172,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Navigator.pop(context);
       } else {
         final respStr = await response.stream.bytesToString();
+        print('📥 Server Response: $respStr');
         throw Exception('Failed to update profile: $respStr');
       }
     } catch (e) {

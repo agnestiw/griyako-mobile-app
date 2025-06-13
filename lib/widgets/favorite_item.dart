@@ -43,12 +43,18 @@ class FavoriteItem extends StatelessWidget {
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
-                child: Image.asset(
-                  imageUrl,
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+                child: (imageUrl != null && imageUrl.isNotEmpty)
+                    ? Image.network(
+                        imageUrl,
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          debugPrint('Image load error: $error');
+                          return const Center(child: Icon(Icons.broken_image));
+                        },
+                      )
+                    : const Center(child: Icon(Icons.broken_image)),
               ),
               Positioned(
                 top: 10,
@@ -74,7 +80,8 @@ class FavoriteItem extends StatelessWidget {
                   top: 10,
                   right: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -104,7 +111,8 @@ class FavoriteItem extends StatelessWidget {
                   top: 10,
                   right: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(12),
@@ -123,7 +131,8 @@ class FavoriteItem extends StatelessWidget {
                 bottom: 10,
                 right: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.lightBlue,
                     borderRadius: BorderRadius.circular(12),
@@ -176,7 +185,8 @@ class FavoriteItem extends StatelessWidget {
                       ),
                     ],
                   ),
-                if (bedrooms.isNotEmpty && bathrooms.isNotEmpty) const SizedBox(height: 12),
+                if (bedrooms.isNotEmpty && bathrooms.isNotEmpty)
+                  const SizedBox(height: 12),
                 if (bedrooms.isNotEmpty && bathrooms.isNotEmpty)
                   Row(
                     children: [
