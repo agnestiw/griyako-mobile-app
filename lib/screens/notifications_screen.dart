@@ -21,7 +21,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   String _errorMessage = '';
 
   // Tracks the selected index for the BottomNavBar.
-  int _selectedIndex = 2;
+  int _selectedIndex = 0;
 
   // --- API Configuration ---
   String get _baseUrl {

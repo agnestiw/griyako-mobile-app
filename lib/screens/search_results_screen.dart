@@ -42,7 +42,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   bool _isLoading = false;
   String _message = 'Search for properties by name or location';
   Timer? _debounce;
-  int _selectedIndex = 1; // Set to 1 for search tab
+  // int _selectedIndex = 1;
 
   // --- API Call ---
   // Fetches properties from the server based on the search query.
@@ -117,12 +117,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     super.dispose();
   }
 
-  void onNavItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    // Add navigation logic here if needed, e.g., using a PageController.
-  }
+  // void onNavItemTapped(int index) {
+  //   setState(() {
+  //     _selectedIndex = index;
+  //   });
+  //   // Add navigation logic here if needed, e.g., using a PageController.
+  // }
 
   @override
   Widget build(BuildContext context) {

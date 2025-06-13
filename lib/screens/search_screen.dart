@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:griyako/screens/detail_property_screen.dart';
+import 'package:griyako/widgets/bottom_nav_bar.dart';
 import 'package:http/http.dart' as http;
 
 // --- Mock AppColors for demonstration ---
@@ -42,6 +43,9 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoading = false;
   String _message = 'Search for properties by name or location';
   Timer? _debounce;
+
+    // Tracks the selected index for the BottomNavBar.
+  int _selectedIndex = 1;
 
   Future<void> _searchProperties(String query) async {
     if (query.isEmpty) {
@@ -206,6 +210,12 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        selectedIndex: _selectedIndex,
+        onItemTapped: (index) {
+          setState(() => _selectedIndex = index);
+        },
       ),
     );
   }

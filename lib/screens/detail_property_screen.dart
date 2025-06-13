@@ -1,14 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http; // <-- 1. Import http package
+import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:shared_preferences/shared_preferences.dart'; // <-- 2. Import for jsonEncode
-
-// --- CONVERTED TO STATEFULWIDGET ---
 class DetailPropertyScreen extends StatefulWidget {
-  // Properti untuk menampung data dari item yang di-tap
   final Map<String, dynamic> property;
 
   const DetailPropertyScreen({Key? key, required this.property})
@@ -19,22 +16,25 @@ class DetailPropertyScreen extends StatefulWidget {
 }
 
 class _DetailPropertyScreenState extends State<DetailPropertyScreen> {
-  // --- STATE MANAGEMENT FOR FAVORITE ---
   late bool _isFavorited;
   late int _propertyId;
+  int _currentImageIndex = 0;
+  final PageController _pageController = PageController();
 
   @override
   void initState() {
     super.initState();
-    // Initialize state from the property data passed to the widget.
-    // **IMPORTANT**: You must pass 'is_favorited' (boolean) and 'id' (int) in your property map.
     _isFavorited = widget.property['is_favorited'] ?? false;
     _propertyId = widget.property['id'];
   }
 
-  // --- API CALL FUNCTION TO TOGGLE FAVORITE ---
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   Future<void> _toggleFavorite() async {
-    // **TODO**: Replace with your actual API URL and Authentication logic
     const String apiUrl = 'http://127.0.0.1:8000/api/favorites/store';
     final prefs = await SharedPreferences.getInstance();
     final authToken = prefs.getString('token');
@@ -45,7 +45,6 @@ class _DetailPropertyScreenState extends State<DetailPropertyScreen> {
       return;
     }
 
-    // Optimistically update the UI for instant feedback
     setState(() {
       _isFavorited = !_isFavorited;
     });
@@ -63,41 +62,37 @@ class _DetailPropertyScreenState extends State<DetailPropertyScreen> {
         }),
       );
 
-      // --- LANGKAH 2: TAMBAHKAN LOGIKA DEBUGGING DI SINI ---
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        // Update state with the actual status from the server to ensure consistency
         setState(() {
-          // Pastikan key 'status' ada di dalam 'data'
           if (responseData['data'] != null &&
               responseData['data']['status'] != null) {
             _isFavorited = responseData['data']['status'];
           }
         });
 
-        // Show feedback to the user
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(responseData['message']),
               duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
       } else {
-        // JIKA STATUS BUKAN 200, CETAK INFO ERROR UNTUK DEBUG
-        // Ini adalah bagian terpenting untuk debugging Anda
         if (kDebugMode) {
           print('Gagal! Kode Status: ${response.statusCode}');
           print('Pesan Error dari Server: ${response.body}');
         }
 
-        // Revert state karena gagal
         setState(() {
           _isFavorited = !_isFavorited;
         });
 
-        // Berikan pesan yang lebih spesifik jika memungkinkan
         String errorMessage = 'Gagal memperbarui favorit.';
         if (response.statusCode == 401) {
           errorMessage = 'Sesi Anda telah berakhir. Silakan login kembali.';
@@ -109,59 +104,135 @@ class _DetailPropertyScreenState extends State<DetailPropertyScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)),
+            SnackBar(
+              content: Text(errorMessage),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red.shade700,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           );
         }
       }
     } catch (e) {
-      // JIKA TERJADI ERROR JARINGAN (misal, salah IP, tidak ada internet)
-      // Cetak error-nya untuk debug
       if (kDebugMode) {
         print('Terjadi kesalahan jaringan: $e');
       }
 
-      // Revert state karena gagal
       setState(() {
         _isFavorited = !_isFavorited;
       });
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tidak dapat terhubung ke server.')),
+          SnackBar(
+            content: const Text('Tidak dapat terhubung ke server.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade700,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     }
   }
 
-  // Helper untuk membuat baris ikon dan teks yang dapat digunakan kembali
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSpecItem({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
+    return Container(
+      width: 80,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.blueGrey, size: 22),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ],
+          Icon(icon, color: Colors.blue),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.blue,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFacilityItem(IconData icon, String name) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blue, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -171,11 +242,17 @@ class _DetailPropertyScreenState extends State<DetailPropertyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- Data extraction is now inside the build method of the State ---
-    final property = widget.property; // Access property via widget.property
+    final property = widget.property;
     final String? imageUrl = property['image_url'] as String?;
     final bool isNetworkImage = imageUrl != null && imageUrl.isNotEmpty;
     const String fallbackAssetPath = 'assets/logo_griyako.png';
+
+    // Create a list of images (in a real app, this would come from the property data)
+    final List<String> images = [
+      if (isNetworkImage) imageUrl!,
+      'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+    ];
 
     String formattedPrice = 'Harga tidak tersedia';
     if (property['harga'] != null) {
@@ -197,62 +274,124 @@ class _DetailPropertyScreenState extends State<DetailPropertyScreen> {
         : 'N/A';
     final String bedrooms = property['bedrooms']?.toString() ?? '?';
     final String bathrooms = property['bathrooms']?.toString() ?? '?';
-    final String description =
-        property['description'] ?? 'Tidak ada deskripsi.';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
-        titleTextStyle: const TextStyle(
-            color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
-        // --- ADDED ACTIONS FOR THE FAVORITE BUTTON ---
-        actions: [
-          IconButton(
-            onPressed: _toggleFavorite, // Call the API function on press
-            icon: Icon(
-              _isFavorited
-                  ? Icons.favorite
-                  : Icons.favorite_border, // Conditional icon
-              color: Colors.red,
-              size: 28,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 300,
+            pinned: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                children: [
+                  PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentImageIndex = index;
+                      });
+                    },
+                    itemCount: images.length,
+                    itemBuilder: (context, index) {
+                      return Hero(
+                        tag: 'property_image_${property['id']}_$index',
+                        child: Image.network(
+                          images[index],
+                          width: double.infinity,
+                          height: 300,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Image.asset(
+                            fallbackAssetPath,
+                            width: double.infinity,
+                            height: 300,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  Positioned(
+                    bottom: 16,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        images.length,
+                        (index) => Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _currentImageIndex == index
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.8),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        onPressed: _toggleFavorite,
+                        icon: Icon(
+                          _isFavorited ? Icons.favorite : Icons.favorite_border,
+                          color: Colors.red,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            leading: Container(
+              margin: const EdgeInsets.only(left: 8, top: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Hero(
-              tag: 'property_image_${property['id']}',
-              child: isNetworkImage
-                  ? Image.network(
-                      imageUrl,
-                      width: double.infinity,
-                      height: 250,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Image.asset(
-                        fallbackAssetPath,
-                        width: double.infinity,
-                        height: 250,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : Image.asset(
-                      fallbackAssetPath,
-                      width: double.infinity,
-                      height: 250,
-                      fit: BoxFit.cover,
-                    ),
-            ),
-            Padding(
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Property Type Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      propertyType,
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Title
                   Text(
                     title,
                     style: const TextStyle(
@@ -261,71 +400,213 @@ class _DetailPropertyScreenState extends State<DetailPropertyScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  
+                  // Location
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, color: Colors.grey, size: 18),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          address,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Price
                   Text(
                     formattedPrice,
                     style: const TextStyle(
-                      color: Colors.green,
+                      color: Colors.blue,
                       fontWeight: FontWeight.bold,
-                      fontSize: 22,
+                      fontSize: 24,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  _buildDetailRow(
-                      Icons.location_on_outlined, 'Alamat', address),
-                  _buildDetailRow(
-                      Icons.home_work_outlined, 'Tipe Properti', propertyType),
-                  _buildDetailRow(
-                      Icons.square_foot_outlined, 'Luas Bangunan', size),
-                  _buildDetailRow(
-                      Icons.king_bed_outlined, 'Kamar Tidur', '$bedrooms KT'),
-                  _buildDetailRow(
-                      Icons.bathtub_outlined, 'Kamar Mandi', '$bathrooms KM'),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const Text(
-                    'Deskripsi',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                  const SizedBox(height: 24),
+                  
+                  // Specifications
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildSpecItem(
+                        icon: Icons.straighten,
+                        value: size,
+                        label: 'Luas',
+                      ),
+                      _buildSpecItem(
+                        icon: Icons.king_bed,
+                        value: '$bedrooms KT',
+                        label: 'Kamar Tidur',
+                      ),
+                      _buildSpecItem(
+                        icon: Icons.bathtub,
+                        value: '$bathrooms KM',
+                        label: 'Kamar Mandi',
+                      ),
+                    ],
+                  ),
+                  
+                  // Facilities Section
+                  _buildSectionTitle('Fasilitas'),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _buildFacilityItem(Icons.local_parking, 'Parkir'),
+                      _buildFacilityItem(Icons.security, 'Keamanan 24 Jam'),
+                      _buildFacilityItem(Icons.pool, 'Kolam Renang'),
+                      _buildFacilityItem(Icons.wifi, 'WiFi'),
+                      _buildFacilityItem(Icons.ac_unit, 'AC'),
+                      _buildFacilityItem(Icons.tv, 'TV Kabel'),
+                    ],
+                  ),
+                  
+                  // Location Section
+                  _buildSectionTitle('Lokasi'),
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.grey.shade200,
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.map, size: 48, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          const Text('Peta Lokasi'),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.location_on, size: 16),
+                            label: const Text('Lihat di Peta'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    textAlign: TextAlign.justify,
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
-                      color: Colors.grey[800],
+                  
+                  // Contact Section
+                  _buildSectionTitle('Kontak Agen'),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 30,
+                          backgroundImage: NetworkImage(
+                            'https://randomuser.me/api/portraits/women/44.jpg',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Della Putri',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Agen Properti Senior',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.email, color: Colors.white),
+                            onPressed: () {},
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.phone, color: Colors.white),
+                            onPressed: () {},
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  
+                  const SizedBox(height: 80), // Space for the bottom button
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
+      floatingActionButton: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ElevatedButton.icon(
-          onPressed: () {
-            // Logika untuk menghubungi penjual (misal: membuka WhatsApp)
-          },
-          icon: const Icon(Icons.call, color: Colors.white),
-          label: const Text('Hubungi Penjual',
-              style: TextStyle(color: Colors.white)),
+          onPressed: () {},
+          icon: const Icon(Icons.local_phone, color: Colors.white),
+          label: const Text(
+            'Hubungi via WhatsApp',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            textStyle:
-                const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            backgroundColor: Colors.green,
+            padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }
